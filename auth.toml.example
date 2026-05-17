@@ -1,0 +1,26 @@
+[server]
+# gRPC 監聽位址，格式為 host:port。host 留空表示綁定所有介面。
+listen_address = ':30052'
+
+[storage]
+# SQLite 資料庫檔案路徑；若所在目錄不存在，sqlite driver 會嘗試建立。
+sqlite_path = 'data/auth.db'
+# SQLite busy_timeout，遇到 lock 時最多等待的時間（time.ParseDuration 格式）。
+busy_timeout = '5s'
+
+[auth]
+# JWT 簽發者，會寫入 access token 的 `iss` claim。
+issuer = 'auth-service'
+# access token 有效時間（≥ 1s）。
+access_token_ttl = '5m'
+# refresh token 有效時間（≥ 1s，且須 ≥ access_token_ttl）。
+refresh_token_ttl = '30m'
+# 系統允許的最大使用者數，CreateUser 超過會回 ResourceExhausted。
+max_users = 20
+# HS256 簽章金鑰；正式環境請改為高熵亂數，勿沿用範例值。
+signing_key = 'my_secret_signing_key'
+# 首次啟動且 users 表為空時，會自動建立的管理員帳號。
+bootstrap_admin_username = 'admin'
+bootstrap_admin_password = 'Admin123!'
+bootstrap_admin_display_name = 'Admin'
+bootstrap_admin_roles = ['admin']

@@ -1,0 +1,204 @@
+syntax = "proto3";
+
+package auth.api.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "auth/api/v1;api";
+
+service AuthAPI {
+  // 使用帳號密碼登入。
+  // 不需要 authorization metadata。
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // 驗證指定 access token 是否有效。
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
+
+  // 使用 refresh token 換新的 access token。
+  // 此 RPC 的 refresh_token 是被更新的資料，因此保留在 RefreshTokenRequest 內。
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  // 登出，讓 refresh token 失效。
+  // 建議需要 authorization metadata，並確認 refresh token 屬於目前登入使用者。
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+
+  // 取得使用者資訊。
+  // 需要 authorization metadata。
+  rpc GetProfile(GetProfileRequest) returns (UserProfile);
+
+  // 新增使用者。
+  // 需要 authorization metadata。
+  rpc CreateUser(CreateUserRequest) returns (UserProfile);
+
+  // 修改使用者。
+  // 需要 authorization metadata。
+  rpc UpdateUser(UpdateUserRequest) returns (UserProfile);
+
+  // 刪除使用者。
+  // 需要 authorization metadata。
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+
+  // 查詢使用者列表。
+  // 需要 authorization metadata。
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+
+  // 查詢使用者數量。
+  // 需要 authorization metadata。
+  rpc CountUsers(CountUsersRequest) returns (CountUsersResponse);
+
+  // 查詢Role列表。
+  // 需要 authorization metadata。
+  rpc ListRoles(google.protobuf.Empty) returns (ListRolesResponse);
+
+
+  // 取得認證設定。
+  // 需要 authorization metadata。
+  rpc GetAuthSettings(google.protobuf.Empty) returns (AuthSettings);
+
+  // 更新認證設定。
+  // 需要 authorization metadata。
+  rpc UpdateAuthSettings(UpdateAuthSettingsRequest) returns (AuthSettings);
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+  string client_id = 3;
+  string client_ip = 4;
+  string user_agent = 5;
+}
+
+message LoginResponse {
+  uint32 user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  string refresh_token = 4;
+  string access_token = 5;
+  int64 expires_in = 6;
+}
+
+message VerifyTokenRequest {
+  string access_token = 1;
+}
+
+message VerifyTokenResponse {
+  bool valid = 1;
+  uint32 user_id = 2;
+  string username = 3;
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+  string client_id = 2;
+  string client_ip = 3;
+  string user_agent = 4;
+}
+
+message RefreshTokenResponse {
+  string refresh_token = 1;
+  string access_token = 2;
+  int64 expires_in = 3;
+}
+
+message LogoutRequest {
+  string refresh_token = 1;
+  string client_id = 2;
+  string client_ip = 3;
+  string user_agent = 4;
+}
+
+message GetProfileRequest {
+  uint32 user_id = 1;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string password = 2;
+  string display_name = 3;
+  repeated string roles = 4;
+  bool enabled = 5;
+}
+
+message UpdateUserRequest {
+  uint32 user_id = 1;
+
+  // 可修改欄位：password, display_name, roles, enabled
+  // 範例：update_mask.paths = ["display_name", "enabled"]
+  google.protobuf.FieldMask update_mask = 2;
+
+  optional string password = 3;
+  optional string display_name = 4;
+  repeated string roles = 5;
+  optional bool enabled = 6;
+}
+
+message DeleteUserRequest {
+  uint32 user_id = 1;
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+
+  // optional keyword for username / display_name search
+  string keyword = 3;
+
+  // optional enabled filter
+  bool enabled_only = 4;
+}
+
+message ListUsersResponse {
+  repeated UserListItem users = 1;
+  string next_page_token = 2;
+}
+
+message UserProfile {
+  uint32 user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  repeated string roles = 4;
+  bool enabled = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  google.protobuf.Timestamp last_login_at = 8;
+}
+
+message UserListItem {
+  uint32 user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  repeated string roles = 4;
+  bool enabled = 5;
+  google.protobuf.Timestamp last_login_at = 6;
+}
+
+message CountUsersRequest {
+  // optional keyword for username / display_name search
+  string keyword = 1;
+
+  // optional enabled filter
+  bool enabled_only = 2;
+}
+
+message CountUsersResponse {
+  uint32 count = 1;
+}
+
+message UpdateAuthSettingsRequest {
+  google.protobuf.FieldMask update_mask = 1;
+
+  optional bool extend_refresh_token_on_refresh = 2;
+}
+
+message AuthSettings {
+  bool extend_refresh_token_on_refresh = 1;
+}
+
+message ListRolesResponse {
+  repeated string roles = 1;
+}
