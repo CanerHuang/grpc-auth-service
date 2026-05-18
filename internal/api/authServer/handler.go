@@ -8,6 +8,7 @@ import (
 	"authd/internal/service"
 	"authd/pkg/database/sqlite"
 	api "authd/pkg/grpc/auth"
+	"authd/pkg/version"
 
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
@@ -205,6 +206,15 @@ func (h *Handler) UpdateAuthSettings(ctx context.Context, req *api.UpdateAuthSet
 	}
 	return &api.AuthSettings{
 		ExtendRefreshTokenOnRefresh: settings,
+	}, nil
+}
+
+func (h *Handler) VersionGet(ctx context.Context, _ *emptypb.Empty) (*api.VersionInfo, error) {
+	_ = ctx
+	return &api.VersionInfo{
+		Version: version.Version,
+		Commit:  version.Commit,
+		Date:    version.Date,
 	}, nil
 }
 

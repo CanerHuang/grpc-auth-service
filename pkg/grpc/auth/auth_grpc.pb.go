@@ -33,6 +33,7 @@ const (
 	AuthAPI_ListRoles_FullMethodName          = "/auth.api.v1.AuthAPI/ListRoles"
 	AuthAPI_GetAuthSettings_FullMethodName    = "/auth.api.v1.AuthAPI/GetAuthSettings"
 	AuthAPI_UpdateAuthSettings_FullMethodName = "/auth.api.v1.AuthAPI/UpdateAuthSettings"
+	AuthAPI_VersionGet_FullMethodName         = "/auth.api.v1.AuthAPI/VersionGet"
 )
 
 // AuthAPIClient is the client API for AuthAPI service.
@@ -77,6 +78,9 @@ type AuthAPIClient interface {
 	// 更新認證設定。
 	// 需要 authorization metadata。
 	UpdateAuthSettings(ctx context.Context, in *UpdateAuthSettingsRequest, opts ...grpc.CallOption) (*AuthSettings, error)
+	// 回傳由 build.sh 透過 -ldflags 注入的 version / commit / date。
+	// 不需要 authorization metadata。
+	VersionGet(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*VersionInfo, error)
 }
 
 type authAPIClient struct {
@@ -217,6 +221,16 @@ func (c *authAPIClient) UpdateAuthSettings(ctx context.Context, in *UpdateAuthSe
 	return out, nil
 }
 
+func (c *authAPIClient) VersionGet(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*VersionInfo, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VersionInfo)
+	err := c.cc.Invoke(ctx, AuthAPI_VersionGet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthAPIServer is the server API for AuthAPI service.
 // All implementations must embed UnimplementedAuthAPIServer
 // for forward compatibility.
@@ -259,6 +273,9 @@ type AuthAPIServer interface {
 	// 更新認證設定。
 	// 需要 authorization metadata。
 	UpdateAuthSettings(context.Context, *UpdateAuthSettingsRequest) (*AuthSettings, error)
+	// 回傳由 build.sh 透過 -ldflags 注入的 version / commit / date。
+	// 不需要 authorization metadata。
+	VersionGet(context.Context, *emptypb.Empty) (*VersionInfo, error)
 	mustEmbedUnimplementedAuthAPIServer()
 }
 
@@ -307,6 +324,9 @@ func (UnimplementedAuthAPIServer) GetAuthSettings(context.Context, *emptypb.Empt
 }
 func (UnimplementedAuthAPIServer) UpdateAuthSettings(context.Context, *UpdateAuthSettingsRequest) (*AuthSettings, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateAuthSettings not implemented")
+}
+func (UnimplementedAuthAPIServer) VersionGet(context.Context, *emptypb.Empty) (*VersionInfo, error) {
+	return nil, status.Error(codes.Unimplemented, "method VersionGet not implemented")
 }
 func (UnimplementedAuthAPIServer) mustEmbedUnimplementedAuthAPIServer() {}
 func (UnimplementedAuthAPIServer) testEmbeddedByValue()                 {}
@@ -563,6 +583,24 @@ func _AuthAPI_UpdateAuthSettings_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthAPI_VersionGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthAPIServer).VersionGet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthAPI_VersionGet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthAPIServer).VersionGet(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthAPI_ServiceDesc is the grpc.ServiceDesc for AuthAPI service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -621,6 +659,10 @@ var AuthAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateAuthSettings",
 			Handler:    _AuthAPI_UpdateAuthSettings_Handler,
+		},
+		{
+			MethodName: "VersionGet",
+			Handler:    _AuthAPI_VersionGet_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

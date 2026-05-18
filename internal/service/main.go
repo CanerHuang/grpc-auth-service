@@ -200,7 +200,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 		return nil, ErrInvalidCredentials
 	}
 
-	accessToken, expiresAt, err := s.signAccessToken(user)
+	accessToken, err := s.signAccessToken(user)
 	if err != nil {
 		return nil, err
 	}
@@ -210,15 +210,16 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 		return nil, err
 	}
 	now := time.Now().UTC()
-	s.purgeExpiredRefreshSessions(now)
-	s.saveRefreshSession(refreshHash, refreshSession{
+	newRefreshSession := refreshSession{
 		UserID:    user.UserID,
 		ClientID:  strings.TrimSpace(input.ClientID),
 		UserAgent: strings.TrimSpace(input.UserAgent),
 		ClientIP:  strings.TrimSpace(input.ClientIP),
 		ExpiresAt: now.Add(s.config.RefreshTokenTTL.Std()),
 		CreatedAt: now,
-	})
+	}
+	s.purgeExpiredRefreshSessions(now)
+	s.saveRefreshSession(refreshHash, newRefreshSession)
 
 	if err := s.store.UpdateLastLogin(ctx, user.UserID, time.Now().UTC()); err != nil {
 		return nil, err
@@ -231,7 +232,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 	return &LoginResult{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    int64(time.Until(expiresAt).Seconds()),
+		ExpiresIn:    int64(time.Until(newRefreshSession.ExpiresAt).Seconds()),
 		User:         user,
 	}, nil
 }
@@ -268,7 +269,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Refre
 		return nil, ErrDisabledUser
 	}
 
-	accessToken, expiresAt, err := s.signAccessToken(user)
+	accessToken, err := s.signAccessToken(user)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +296,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Refre
 	return &RefreshResult{
 		RefreshToken: newRefreshToken,
 		AccessToken:  accessToken,
-		ExpiresIn:    int64(time.Until(expiresAt).Seconds()),
+		ExpiresIn:    int64(time.Until(newRefreshExpiresAt).Seconds()),
 	}, nil
 }
 
@@ -538,8 +539,7 @@ func (s *Service) UpdateAuthSettings(ctx context.Context, extendRefreshTokenOnRe
 	return s.settings.RefreshTokenExtendOnRefresh(), nil
 }
 
-func (s *Service) signAccessToken(user *sqlite.User) (string, time.Time, error) {
-	expiresAt := time.Now().UTC().Add(s.config.AccessTokenTTL.Std())
+func (s *Service) signAccessToken(user *sqlite.User) (string, error) {
 	claims := TokenClaims{
 		UserID:   user.UserID,
 		Username: user.Username,
@@ -547,15 +547,15 @@ func (s *Service) signAccessToken(user *sqlite.User) (string, time.Time, error) 
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    s.config.Issuer,
 			Subject:   strconv.FormatUint(uint64(user.UserID), 10),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(s.config.AccessTokenTTL.Std())),
 			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		},
 	}
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.config.SigningKey))
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("sign access token failed: %w", err)
+		return "", fmt.Errorf("sign access token failed: %w", err)
 	}
-	return accessToken, expiresAt, nil
+	return accessToken, nil
 }
 
 func (s *Service) saveRefreshSession(tokenHash string, session refreshSession) {

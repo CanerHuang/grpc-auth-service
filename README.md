@@ -164,6 +164,14 @@ grpcurl -plaintext -proto proto/v1/auth.proto \
   127.0.0.1:30052 auth.api.v1.AuthAPI/Logout
 ```
 
+### 版本資訊
+
+```bash
+# 不需要 authorization metadata，回傳 build.sh -ldflags 注入的版本資訊
+grpcurl -plaintext -proto proto/v1/auth.proto \
+  127.0.0.1:30052 auth.api.v1.AuthAPI/VersionGet
+```
+
 ### 讀寫執行期設定
 
 ```bash

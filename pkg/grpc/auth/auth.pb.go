@@ -234,8 +234,7 @@ type VerifyTokenResponse struct {
 	UserId        uint32                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
 	Roles         []string               `protobuf:"bytes,4,rep,name=roles,proto3" json:"roles,omitempty"`
-	Permissions   []string               `protobuf:"bytes,5,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -294,13 +293,6 @@ func (x *VerifyTokenResponse) GetUsername() string {
 func (x *VerifyTokenResponse) GetRoles() []string {
 	if x != nil {
 		return x.Roles
-	}
-	return nil
-}
-
-func (x *VerifyTokenResponse) GetPermissions() []string {
-	if x != nil {
-		return x.Permissions
 	}
 	return nil
 }
@@ -1302,6 +1294,66 @@ func (x *ListRolesResponse) GetRoles() []string {
 	return nil
 }
 
+type VersionInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"` // e.g. "v1.0.0" or "dev"
+	Commit        string                 `protobuf:"bytes,2,opt,name=commit,proto3" json:"commit,omitempty"`   // git short SHA or "unknown"
+	Date          string                 `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`       // "260517" (production) or "260517T123456Z" (--dev)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VersionInfo) Reset() {
+	*x = VersionInfo{}
+	mi := &file_auth_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VersionInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VersionInfo) ProtoMessage() {}
+
+func (x *VersionInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VersionInfo.ProtoReflect.Descriptor instead.
+func (*VersionInfo) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *VersionInfo) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *VersionInfo) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *VersionInfo) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
@@ -1324,15 +1376,14 @@ const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"expires_in\x18\x06 \x01(\x03R\texpiresIn\"7\n" +
 	"\x12VerifyTokenRequest\x12!\n" +
-	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"\xd3\x01\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\"\xb1\x01\n" +
 	"\x13VerifyTokenResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\rR\x06userId\x12\x1a\n" +
 	"\busername\x18\x03 \x01(\tR\busername\x12\x14\n" +
-	"\x05roles\x18\x04 \x03(\tR\x05roles\x12 \n" +
-	"\vpermissions\x18\x05 \x03(\tR\vpermissions\x129\n" +
+	"\x05roles\x18\x04 \x03(\tR\x05roles\x129\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x93\x01\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x93\x01\n" +
 	"\x13RefreshTokenRequest\x12#\n" +
 	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x1b\n" +
@@ -1412,7 +1463,11 @@ const file_auth_proto_rawDesc = "" +
 	"\fAuthSettings\x12D\n" +
 	"\x1fextend_refresh_token_on_refresh\x18\x01 \x01(\bR\x1bextendRefreshTokenOnRefresh\")\n" +
 	"\x11ListRolesResponse\x12\x14\n" +
-	"\x05roles\x18\x01 \x03(\tR\x05roles2\xcb\a\n" +
+	"\x05roles\x18\x01 \x03(\tR\x05roles\"S\n" +
+	"\vVersionInfo\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12\x16\n" +
+	"\x06commit\x18\x02 \x01(\tR\x06commit\x12\x12\n" +
+	"\x04date\x18\x03 \x01(\tR\x04date2\x8b\b\n" +
 	"\aAuthAPI\x12>\n" +
 	"\x05Login\x12\x19.auth.api.v1.LoginRequest\x1a\x1a.auth.api.v1.LoginResponse\x12P\n" +
 	"\vVerifyToken\x12\x1f.auth.api.v1.VerifyTokenRequest\x1a .auth.api.v1.VerifyTokenResponse\x12S\n" +
@@ -1431,7 +1486,9 @@ const file_auth_proto_rawDesc = "" +
 	"CountUsers\x12\x1e.auth.api.v1.CountUsersRequest\x1a\x1f.auth.api.v1.CountUsersResponse\x12C\n" +
 	"\tListRoles\x12\x16.google.protobuf.Empty\x1a\x1e.auth.api.v1.ListRolesResponse\x12D\n" +
 	"\x0fGetAuthSettings\x12\x16.google.protobuf.Empty\x1a\x19.auth.api.v1.AuthSettings\x12W\n" +
-	"\x12UpdateAuthSettings\x12&.auth.api.v1.UpdateAuthSettingsRequest\x1a\x19.auth.api.v1.AuthSettingsB\x11Z\x0fauth/api/v1;apib\x06proto3"
+	"\x12UpdateAuthSettings\x12&.auth.api.v1.UpdateAuthSettingsRequest\x1a\x19.auth.api.v1.AuthSettings\x12>\n" +
+	"\n" +
+	"VersionGet\x12\x16.google.protobuf.Empty\x1a\x18.auth.api.v1.VersionInfoB\x11Z\x0fauth/api/v1;apib\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -1445,7 +1502,7 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_auth_proto_goTypes = []any{
 	(*LoginRequest)(nil),              // 0: auth.api.v1.LoginRequest
 	(*LoginResponse)(nil),             // 1: auth.api.v1.LoginResponse
@@ -1467,19 +1524,20 @@ var file_auth_proto_goTypes = []any{
 	(*UpdateAuthSettingsRequest)(nil), // 17: auth.api.v1.UpdateAuthSettingsRequest
 	(*AuthSettings)(nil),              // 18: auth.api.v1.AuthSettings
 	(*ListRolesResponse)(nil),         // 19: auth.api.v1.ListRolesResponse
-	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),     // 21: google.protobuf.FieldMask
-	(*emptypb.Empty)(nil),             // 22: google.protobuf.Empty
+	(*VersionInfo)(nil),               // 20: auth.api.v1.VersionInfo
+	(*timestamppb.Timestamp)(nil),     // 21: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),     // 22: google.protobuf.FieldMask
+	(*emptypb.Empty)(nil),             // 23: google.protobuf.Empty
 }
 var file_auth_proto_depIdxs = []int32{
-	20, // 0: auth.api.v1.VerifyTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
-	21, // 1: auth.api.v1.UpdateUserRequest.update_mask:type_name -> google.protobuf.FieldMask
+	21, // 0: auth.api.v1.VerifyTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 1: auth.api.v1.UpdateUserRequest.update_mask:type_name -> google.protobuf.FieldMask
 	14, // 2: auth.api.v1.ListUsersResponse.users:type_name -> auth.api.v1.UserListItem
-	20, // 3: auth.api.v1.UserProfile.created_at:type_name -> google.protobuf.Timestamp
-	20, // 4: auth.api.v1.UserProfile.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 5: auth.api.v1.UserProfile.last_login_at:type_name -> google.protobuf.Timestamp
-	20, // 6: auth.api.v1.UserListItem.last_login_at:type_name -> google.protobuf.Timestamp
-	21, // 7: auth.api.v1.UpdateAuthSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	21, // 3: auth.api.v1.UserProfile.created_at:type_name -> google.protobuf.Timestamp
+	21, // 4: auth.api.v1.UserProfile.updated_at:type_name -> google.protobuf.Timestamp
+	21, // 5: auth.api.v1.UserProfile.last_login_at:type_name -> google.protobuf.Timestamp
+	21, // 6: auth.api.v1.UserListItem.last_login_at:type_name -> google.protobuf.Timestamp
+	22, // 7: auth.api.v1.UpdateAuthSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
 	0,  // 8: auth.api.v1.AuthAPI.Login:input_type -> auth.api.v1.LoginRequest
 	2,  // 9: auth.api.v1.AuthAPI.VerifyToken:input_type -> auth.api.v1.VerifyTokenRequest
 	4,  // 10: auth.api.v1.AuthAPI.RefreshToken:input_type -> auth.api.v1.RefreshTokenRequest
@@ -1490,24 +1548,26 @@ var file_auth_proto_depIdxs = []int32{
 	10, // 15: auth.api.v1.AuthAPI.DeleteUser:input_type -> auth.api.v1.DeleteUserRequest
 	11, // 16: auth.api.v1.AuthAPI.ListUsers:input_type -> auth.api.v1.ListUsersRequest
 	15, // 17: auth.api.v1.AuthAPI.CountUsers:input_type -> auth.api.v1.CountUsersRequest
-	22, // 18: auth.api.v1.AuthAPI.ListRoles:input_type -> google.protobuf.Empty
-	22, // 19: auth.api.v1.AuthAPI.GetAuthSettings:input_type -> google.protobuf.Empty
+	23, // 18: auth.api.v1.AuthAPI.ListRoles:input_type -> google.protobuf.Empty
+	23, // 19: auth.api.v1.AuthAPI.GetAuthSettings:input_type -> google.protobuf.Empty
 	17, // 20: auth.api.v1.AuthAPI.UpdateAuthSettings:input_type -> auth.api.v1.UpdateAuthSettingsRequest
-	1,  // 21: auth.api.v1.AuthAPI.Login:output_type -> auth.api.v1.LoginResponse
-	3,  // 22: auth.api.v1.AuthAPI.VerifyToken:output_type -> auth.api.v1.VerifyTokenResponse
-	5,  // 23: auth.api.v1.AuthAPI.RefreshToken:output_type -> auth.api.v1.RefreshTokenResponse
-	22, // 24: auth.api.v1.AuthAPI.Logout:output_type -> google.protobuf.Empty
-	13, // 25: auth.api.v1.AuthAPI.GetProfile:output_type -> auth.api.v1.UserProfile
-	13, // 26: auth.api.v1.AuthAPI.CreateUser:output_type -> auth.api.v1.UserProfile
-	13, // 27: auth.api.v1.AuthAPI.UpdateUser:output_type -> auth.api.v1.UserProfile
-	22, // 28: auth.api.v1.AuthAPI.DeleteUser:output_type -> google.protobuf.Empty
-	12, // 29: auth.api.v1.AuthAPI.ListUsers:output_type -> auth.api.v1.ListUsersResponse
-	16, // 30: auth.api.v1.AuthAPI.CountUsers:output_type -> auth.api.v1.CountUsersResponse
-	19, // 31: auth.api.v1.AuthAPI.ListRoles:output_type -> auth.api.v1.ListRolesResponse
-	18, // 32: auth.api.v1.AuthAPI.GetAuthSettings:output_type -> auth.api.v1.AuthSettings
-	18, // 33: auth.api.v1.AuthAPI.UpdateAuthSettings:output_type -> auth.api.v1.AuthSettings
-	21, // [21:34] is the sub-list for method output_type
-	8,  // [8:21] is the sub-list for method input_type
+	23, // 21: auth.api.v1.AuthAPI.VersionGet:input_type -> google.protobuf.Empty
+	1,  // 22: auth.api.v1.AuthAPI.Login:output_type -> auth.api.v1.LoginResponse
+	3,  // 23: auth.api.v1.AuthAPI.VerifyToken:output_type -> auth.api.v1.VerifyTokenResponse
+	5,  // 24: auth.api.v1.AuthAPI.RefreshToken:output_type -> auth.api.v1.RefreshTokenResponse
+	23, // 25: auth.api.v1.AuthAPI.Logout:output_type -> google.protobuf.Empty
+	13, // 26: auth.api.v1.AuthAPI.GetProfile:output_type -> auth.api.v1.UserProfile
+	13, // 27: auth.api.v1.AuthAPI.CreateUser:output_type -> auth.api.v1.UserProfile
+	13, // 28: auth.api.v1.AuthAPI.UpdateUser:output_type -> auth.api.v1.UserProfile
+	23, // 29: auth.api.v1.AuthAPI.DeleteUser:output_type -> google.protobuf.Empty
+	12, // 30: auth.api.v1.AuthAPI.ListUsers:output_type -> auth.api.v1.ListUsersResponse
+	16, // 31: auth.api.v1.AuthAPI.CountUsers:output_type -> auth.api.v1.CountUsersResponse
+	19, // 32: auth.api.v1.AuthAPI.ListRoles:output_type -> auth.api.v1.ListRolesResponse
+	18, // 33: auth.api.v1.AuthAPI.GetAuthSettings:output_type -> auth.api.v1.AuthSettings
+	18, // 34: auth.api.v1.AuthAPI.UpdateAuthSettings:output_type -> auth.api.v1.AuthSettings
+	20, // 35: auth.api.v1.AuthAPI.VersionGet:output_type -> auth.api.v1.VersionInfo
+	22, // [22:36] is the sub-list for method output_type
+	8,  // [8:22] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1526,7 +1586,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

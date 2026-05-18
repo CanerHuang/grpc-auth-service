@@ -60,6 +60,10 @@ service AuthAPI {
   // 更新認證設定。
   // 需要 authorization metadata。
   rpc UpdateAuthSettings(UpdateAuthSettingsRequest) returns (AuthSettings);
+
+  // 回傳由 build.sh 透過 -ldflags 注入的 version / commit / date。
+  // 不需要 authorization metadata。
+  rpc VersionGet(google.protobuf.Empty) returns (VersionInfo);
 }
 
 message LoginRequest {
@@ -88,8 +92,7 @@ message VerifyTokenResponse {
   uint32 user_id = 2;
   string username = 3;
   repeated string roles = 4;
-  repeated string permissions = 5;
-  google.protobuf.Timestamp expires_at = 6;
+  google.protobuf.Timestamp expires_at = 5;
 }
 
 message RefreshTokenRequest {
@@ -201,4 +204,10 @@ message AuthSettings {
 
 message ListRolesResponse {
   repeated string roles = 1;
+}
+
+message VersionInfo {
+  string version = 1;  // e.g. "v1.0.0" or "dev"
+  string commit  = 2;  // git short SHA or "unknown"
+  string date    = 3;  // "260517" (production) or "260517T123456Z" (--dev)
 }
