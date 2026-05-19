@@ -14,7 +14,6 @@
 #   ./build.sh --arm64                    # cross-compile linux/arm64
 #   ./build.sh --dev                      # stamp full UTC datetime instead of YYMMDD
 #   ./build.sh --build-dir=/path/to/out   # override build output dir
-#   VERSION=1.2.3 ./build.sh              # override version string
 #
 # Requires: protoc, protoc-gen-go, protoc-gen-go-grpc, go.
 
@@ -55,8 +54,7 @@ done
 
 cd "$(dirname "$0")"
 
-# Build metadata injected via -X. VERSION can be overridden by env.
-VERSION="${VERSION:-dev}"
+VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 if [ "${DEV_DATE}" = "1" ]; then
     DATE="$(date -u +%y%m%dT%H%M%SZ)"
