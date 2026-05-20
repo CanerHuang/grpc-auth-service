@@ -11,12 +11,13 @@
 ```text
 grpc-auth-service/
 ├── main.go                     # 啟動流程：載入設定、開 SQLite、啟動 gRPC server
-├── auth.toml                   # 啟動期設定檔（read-only）
-├── auth.settings.toml          # 執行期可變設定（由 gRPC 更新）
+├── config/
+│   ├── authd.toml              # 啟動期設定檔（read-only）
+│   └── authd-settings.toml     # 執行期可變設定（由 gRPC 更新）
 ├── proto/v1/                   # gRPC 介面定義 (auth.proto)
 ├── internal/
 │   ├── api/authServer/         # gRPC server 實作與 protobuf <-> service 轉換
-│   ├── config/                 # auth.toml 嚴格載入 + auth.settings.toml 持久化
+│   ├── config/                 # authd.toml 嚴格載入 + authd-settings.toml 持久化
 │   └── service/                # Auth 核心業務邏輯
 └── pkg/
     ├── database/sqlite/        # SQLite schema 與 repository
@@ -35,19 +36,54 @@ go build -o authd .
 執行：
 
 ```bash
-./authd                                       # 讀取 exe 同目錄下的 auth.toml / auth.settings.toml
-./authd -config /etc/authd/auth.toml \
-        -settings /var/lib/authd/auth.settings.toml
+./authd                                       # 讀取 <exe-dir>/config/authd.toml 與 <exe-dir>/config/authd-settings.toml
+./authd -config /etc/authd/authd.toml \
+        -settings /var/lib/authd/authd-settings.toml
 ```
 
 - `-config`：啟動期設定檔，必須存在且所有欄位需通過驗證；任何缺漏或不合理的值會 fatal exit。
 - `-settings`：執行期可變設定檔；不存在時會以預設值（`refresh_token_extend_on_refresh = true`）自動建立。
 
+## 佈署 Layout
+
+`build.sh` 產出的 `authd.tar.gz` 解開後即符合 `authd` 的預設路徑解析（設定檔位於 exe 同目錄底下的 `config/`），建議佈署到 `/opt/authd/`：
+
+```text
+/opt/authd/
+├── authd                          # build.sh 產出的 binary
+├── config/
+│   ├── authd.toml                 # 啟動期設定（由 authd.toml.example 改名）
+│   └── authd-settings.toml        # 執行期設定（首次啟動會自動建立）
+└── data/
+    └── authd.db                   # sqlite_path = 'data/authd.db' 為相對於 CWD
+```
+
+由於 `storage.sqlite_path` 預設為相對路徑 `data/authd.db`，啟動時的 CWD 需指向 `/opt/authd/`（systemd 用 `WorkingDirectory=`，手動跑就 `cd /opt/authd && ./authd`）。
+
+systemd 單位檔範例見 [`systemd/authd.service`](systemd/authd.service)，安裝步驟：
+
+```bash
+# 1. 建立執行使用者（不允許登入）
+useradd --system --home /opt/authd --shell /usr/sbin/nologin authd
+
+# 2. 解開 tarball、改名 .example、設定權限
+tar -xzf authd.tar.gz -C /opt
+mv /opt/authd/config/authd.toml.example          /opt/authd/config/authd.toml
+mv /opt/authd/config/authd-settings.toml.example /opt/authd/config/authd-settings.toml
+mkdir -p /opt/authd/data
+chown -R authd:authd /opt/authd
+
+# 3. 安裝並啟動 systemd unit
+cp systemd/authd.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now authd
+```
+
 ## 設定檔
 
-### `auth.toml`（啟動期設定，read-only）
+### `authd.toml`（啟動期設定，read-only）
 
-所有欄位皆為必填，啟動時嚴格驗證。範例見 [`auth.toml.example`](auth.toml.example)。
+所有欄位皆為必填，啟動時嚴格驗證。範例見 [`authd.toml`](config/authd.toml)。
 
 ```toml
 [server]
@@ -56,7 +92,7 @@ listen_address = '127.0.0.1:30052'
 
 [storage]
 # SQLite 資料庫檔案路徑；若所在目錄不存在，sqlite driver 會嘗試建立。
-sqlite_path = 'data/auth.db'
+sqlite_path = 'data/authd.db'
 # SQLite busy_timeout，遇到 lock 時最多等待的時間（time.ParseDuration 格式）。
 busy_timeout = '5s'
 
@@ -86,9 +122,9 @@ bootstrap_admin_roles = ['admin']
 - `auth.max_users` > 0
 - `auth.signing_key`、`auth.issuer`、`auth.bootstrap_admin_*` 全部非空
 
-### `auth.settings.toml`（執行期設定，可由 gRPC 更新）
+### `authd-settings.toml`（執行期設定，可由 gRPC 更新）
 
-存放可在執行期動態調整的開關，目前僅 `refresh_token_extend_on_refresh`。透過 gRPC `UpdateAuthSettings` 寫入後會立即落盤；首次啟動若檔案不存在，會以下列預設值自動建立。範例見 [`auth.settings.toml.example`](auth.settings.toml.example)。
+存放可在執行期動態調整的開關，目前僅 `refresh_token_extend_on_refresh`。透過 gRPC `UpdateAuthSettings` 寫入後會立即落盤；首次啟動若檔案不存在，會以下列預設值自動建立。範例見 [`authd-settings.toml`](config/authd-settings.toml)。
 
 ```toml
 # refresh token 旋轉時是否延長到期時間。
@@ -175,12 +211,12 @@ grpcurl -plaintext -proto proto/v1/auth.proto \
 ### 讀寫執行期設定
 
 ```bash
-# 讀取目前的 auth.settings.toml 值
+# 讀取目前的 authd-settings.toml 值
 grpcurl -plaintext -proto proto/v1/auth.proto \
   -H "authorization: Bearer ${ACCESS}" \
   127.0.0.1:30052 auth.api.v1.AuthAPI/GetAuthSettings
 
-# 關閉 refresh token 旋轉延長（會立即落盤至 auth.settings.toml）
+# 關閉 refresh token 旋轉延長（會立即落盤至 authd-settings.toml）
 grpcurl -plaintext -proto proto/v1/auth.proto \
   -H "authorization: Bearer ${ACCESS}" \
   -d '{"update_mask":{"paths":["extend_refresh_token_on_refresh"]},"extend_refresh_token_on_refresh":false}' \

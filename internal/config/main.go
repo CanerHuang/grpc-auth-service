@@ -11,7 +11,10 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const DefaultConfigFileName = "auth.toml"
+const (
+	DefaultConfigDir      = "config"
+	DefaultConfigFileName = "authd.toml"
+)
 
 type Config struct {
 	Server  ServerConfig  `toml:"server"`
@@ -40,7 +43,7 @@ type AuthConfig struct {
 	BootstrapAdminRoles       []string `toml:"bootstrap_admin_roles"`
 }
 
-// Load 嚴格載入 auth.toml：檔案必須存在，所有欄位必填且需通過合理性檢查。
+// Load 嚴格載入 authd.toml：檔案必須存在，所有欄位必填且需通過合理性檢查。
 // 任何缺失或不合理的值都會回傳 error，不再自動補預設值。
 func Load(path string) (Config, error) {
 	configPath := strings.TrimSpace(path)
@@ -64,14 +67,6 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("invalid auth config %q: %w", configPath, err)
 	}
 	return cfg, nil
-}
-
-func DefaultConfigPath() string {
-	exe, err := os.Executable()
-	if err != nil {
-		return DefaultConfigFileName
-	}
-	return filepath.Join(filepath.Dir(exe), DefaultConfigFileName)
 }
 
 func validate(cfg *Config) error {
@@ -123,4 +118,13 @@ func validate(cfg *Config) error {
 		}
 	}
 	return nil
+}
+
+// DefaultConfigPath 回傳 exe 同目錄底下的 config/authd.toml 絕對路徑。
+func DefaultConfigPath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return filepath.Join(DefaultConfigDir, DefaultConfigFileName)
+	}
+	return filepath.Join(filepath.Dir(exe), DefaultConfigDir, DefaultConfigFileName)
 }

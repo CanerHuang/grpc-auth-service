@@ -16,7 +16,7 @@ func setupDB(t *testing.T) (*Store, func()) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	dbPath := filepath.Join(dir, "auth.db")
+	dbPath := filepath.Join(dir, "authd.db")
 
 	store, err := Open(dbPath, 5*time.Second)
 	if err != nil {

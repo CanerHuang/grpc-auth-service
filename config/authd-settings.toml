@@ -1,4 +1,4 @@
-# auth.settings.toml — 執行期可變設定，由 gRPC UpdateAuthSettings 直接寫入。
+# authd-settings.toml — 執行期可變設定，由 gRPC UpdateAuthSettings 直接寫入。
 # 若檔案不存在，authd 首次啟動會以本檔的預設值自動建立。
 
 # refresh token 旋轉時是否延長到期時間。

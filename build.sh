@@ -84,13 +84,13 @@ protoc \
 echo "[2/4] staging release directory at ${STAGE_DIR}"
 mkdir -p "${BUILD_DIR}"
 rm -rf "${STAGE_DIR}"
-mkdir -p "${STAGE_DIR}"
+mkdir -p "${STAGE_DIR}/config"
 
 echo "[3/4] building authd binary into stage (linux/${GOARCH_TARGET}) version=${VERSION} commit=${COMMIT} date=${DATE}"
 CGO_ENABLED=0 GOOS=linux GOARCH="${GOARCH_TARGET}" \
     go build -trimpath -ldflags="${LDFLAGS}" -o "${STAGE_DIR}/authd" .
-cp "${PROJECT_ROOT}/auth.toml.example"          "${STAGE_DIR}/auth.toml.example"
-cp "${PROJECT_ROOT}/auth.settings.toml.example" "${STAGE_DIR}/auth.settings.toml.example"
+cp "${PROJECT_ROOT}/config/authd.toml"          "${STAGE_DIR}/config/authd.toml.example"
+cp "${PROJECT_ROOT}/config/authd-settings.toml" "${STAGE_DIR}/config/authd-settings.toml.example"
 
 ARCHIVE="${BUILD_DIR}/authd.tar.gz"
 echo "[4/4] packing ${ARCHIVE}"

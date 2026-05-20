@@ -4,7 +4,7 @@ listen_address = ':30052'
 
 [storage]
 # SQLite 資料庫檔案路徑；若所在目錄不存在，sqlite driver 會嘗試建立。
-sqlite_path = 'data/auth.db'
+sqlite_path = 'data/authd.db'
 # SQLite busy_timeout，遇到 lock 時最多等待的時間（time.ParseDuration 格式）。
 busy_timeout = '5s'
 

@@ -11,7 +11,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const DefaultSettingsFileName = "auth.settings.toml"
+const DefaultSettingsFileName = "authd-settings.toml"
 
 // Settings 是執行期可變的設定，由 gRPC 介面直接寫入，並會持久化到磁碟。
 type Settings struct {
@@ -31,15 +31,16 @@ type SettingsStore struct {
 	settings Settings
 }
 
+// DefaultSettingsPath 回傳 exe 同目錄底下的 config/authd-settings.toml 絕對路徑。
 func DefaultSettingsPath() string {
 	exe, err := os.Executable()
 	if err != nil {
-		return DefaultSettingsFileName
+		return filepath.Join(DefaultConfigDir, DefaultSettingsFileName)
 	}
-	return filepath.Join(filepath.Dir(exe), DefaultSettingsFileName)
+	return filepath.Join(filepath.Dir(exe), DefaultConfigDir, DefaultSettingsFileName)
 }
 
-// LoadSettings 載入 auth.settings.toml。若檔案不存在，會以預設值建立並寫盤。
+// LoadSettings 載入 authd-settings.toml。若檔案不存在，會以預設值建立並寫盤。
 func LoadSettings(path string) (*SettingsStore, error) {
 	settingsPath := strings.TrimSpace(path)
 	if settingsPath == "" {
@@ -49,7 +50,7 @@ func LoadSettings(path string) (*SettingsStore, error) {
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("read auth settings %q failed: %w", settingsPath, err)
+			return nil, fmt.Errorf("read authd settings %q failed: %w", settingsPath, err)
 		}
 		s := defaultSettings()
 		if err := writeSettings(settingsPath, s); err != nil {

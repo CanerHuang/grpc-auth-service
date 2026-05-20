@@ -10,7 +10,7 @@ import (
 
 func TestLoadSettings_CreatesDefaultWhenMissing(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "auth.settings.toml")
+	path := filepath.Join(dir, "authd-settings.toml")
 
 	store, err := config.LoadSettings(path)
 	if err != nil {
@@ -27,7 +27,7 @@ func TestLoadSettings_CreatesDefaultWhenMissing(t *testing.T) {
 
 func TestLoadSettings_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "auth.settings.toml")
+	path := filepath.Join(dir, "authd-settings.toml")
 
 	store, err := config.LoadSettings(path)
 	if err != nil {
@@ -48,7 +48,7 @@ func TestLoadSettings_RoundTrip(t *testing.T) {
 
 func TestLoadSettings_PreservesExistingValue(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "auth.settings.toml")
+	path := filepath.Join(dir, "authd-settings.toml")
 	if err := os.WriteFile(path, []byte("refresh_token_extend_on_refresh = false\n"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}

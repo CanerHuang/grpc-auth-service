@@ -155,7 +155,7 @@ const validConfigTOML = `
 listen_address = '127.0.0.1:30052'
 
 [storage]
-sqlite_path = 'data/auth.db'
+sqlite_path = 'data/authd.db'
 busy_timeout = '5s'
 
 [auth]
@@ -245,7 +245,7 @@ func TestConfig_LoadRejectsInvalidValues(t *testing.T) {
 }
 
 func TestConfig_LoadRejectsUnknownField(t *testing.T) {
-	// refresh_token_extend_on_refresh 已搬到 auth.settings.toml，舊欄位應被拒絕。
+	// refresh_token_extend_on_refresh 已搬到 authd-settings.toml，舊欄位應被拒絕。
 	tainted := strings.Replace(
 		validConfigTOML,
 		"signing_key = 'test-key'",

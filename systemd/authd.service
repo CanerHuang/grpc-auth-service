@@ -1,0 +1,42 @@
+[Unit]
+Description=authd gRPC authentication service
+Documentation=https://github.com/CanerHuang/grpc-auth-service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# 預期佈署 layout（與 build.sh 產出的 tar.gz 對齊）：
+#   /opt/authd/authd                              # 由 build.sh 產出
+#   /opt/authd/config/authd.toml                  # 啟動期設定（read-only）
+#   /opt/authd/config/authd-settings.toml         # 執行期設定（gRPC 可寫）
+#   /opt/authd/data/authd.db                      # sqlite_path 相對於 WorkingDirectory
+#
+# 安裝建議：
+#   useradd --system --home /opt/authd --shell /usr/sbin/nologin authd
+#   chown -R authd:authd /opt/authd
+#   systemctl enable --now authd
+Type=simple
+User=authd
+Group=authd
+WorkingDirectory=/opt/authd
+ExecStart=/opt/authd/authd
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65535
+
+# === Hardening ===
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+# config/ 需可寫（authd-settings.toml 由 gRPC 落盤）；data/ 為 sqlite 檔
+ReadWritePaths=/opt/authd/config /opt/authd/data
+
+[Install]
+WantedBy=multi-user.target

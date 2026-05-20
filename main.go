@@ -29,8 +29,8 @@ func init() {
 func main() {
 	log.Info().Msgf("Auth service version %s starting...", version.Info())
 
-	flagConfigFile := flag.String("config", "", "Path to the configuration file (default: auth.toml)")
-	flagSettingsFile := flag.String("settings", "", "Path to the mutable settings file (default: auth.settings.toml)")
+	flagConfigFile := flag.String("config", "", "Path to the configuration file (default: <exe-dir>/config/authd.toml)")
+	flagSettingsFile := flag.String("settings", "", "Path to the mutable settings file (default: <exe-dir>/config/authd-settings.toml)")
 	flag.Parse()
 
 	cfg, err := config.Load(*flagConfigFile)
