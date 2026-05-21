@@ -10,9 +10,10 @@
 #      the result.
 #
 # Usage:
-#   ./build.sh                            # linux/amd64
+#   ./build.sh                            # linux/amd64, compile only (no tarball)
 #   ./build.sh --arm64                    # cross-compile linux/arm64
 #   ./build.sh --dev                      # stamp full UTC datetime instead of YYMMDD
+#   ./build.sh --tar                      # additionally pack stage into authd.tar.gz
 #   ./build.sh --build-dir=/path/to/out   # override build output dir
 #
 # Requires: protoc, protoc-gen-go, protoc-gen-go-grpc, go.
@@ -22,6 +23,7 @@ set -euo pipefail
 GOARCH_TARGET="amd64"
 BUILD_DIR="/tmp/authd/build"
 DEV_DATE=0
+DO_TAR=0
 for arg in "$@"; do
     case "$arg" in
         --arm64)
@@ -33,6 +35,9 @@ for arg in "$@"; do
         --dev)
             DEV_DATE=1
             ;;
+        --tar)
+            DO_TAR=1
+            ;;
         --build-dir=*)
             BUILD_DIR="${arg#--build-dir=}"
             if [[ -z "${BUILD_DIR}" ]]; then
@@ -41,12 +46,12 @@ for arg in "$@"; do
             fi
             ;;
         -h|--help)
-            sed -n '2,19p' "$0"
+            sed -n '2,20p' "$0"
             exit 0
             ;;
         *)
             echo "unknown argument: $arg" >&2
-            echo "usage: $0 [--arm64|--amd64] [--dev] [--build-dir=<path>]" >&2
+            echo "usage: $0 [--arm64|--amd64] [--dev] [--tar] [--build-dir=<path>]" >&2
             exit 1
             ;;
     esac
@@ -56,6 +61,10 @@ cd "$(dirname "$0")"
 
 VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+# dev* tag 自動套用 dev 日期格式，無需手動帶 --dev。
+case "${VERSION}" in
+    dev*) DEV_DATE=1 ;;
+esac
 if [ "${DEV_DATE}" = "1" ]; then
     DATE="$(date -u +%y%m%dT%H%M%SZ)"
 else
@@ -73,7 +82,12 @@ PROTO_DIR="${PROJECT_ROOT}/proto/v1"
 STUB_DIR="${PROJECT_ROOT}/pkg/grpc/auth"
 STAGE_DIR="${BUILD_DIR}/authd"
 
-echo "[1/4] regenerating proto stub from ${PROTO_DIR}/auth.proto"
+TOTAL_STEPS=3
+if [ "${DO_TAR}" = "1" ]; then
+    TOTAL_STEPS=4
+fi
+
+echo "[1/${TOTAL_STEPS}] regenerating proto stub from ${PROTO_DIR}/auth.proto"
 mkdir -p "${STUB_DIR}"
 protoc \
     --go_out="${STUB_DIR}"      --go_opt=paths=source_relative \
@@ -81,21 +95,26 @@ protoc \
     -I"${PROTO_DIR}" \
     "${PROTO_DIR}/auth.proto"
 
-echo "[2/4] staging release directory at ${STAGE_DIR}"
+echo "[2/${TOTAL_STEPS}] staging release directory at ${STAGE_DIR}"
 mkdir -p "${BUILD_DIR}"
 rm -rf "${STAGE_DIR}"
 mkdir -p "${STAGE_DIR}/config"
 
-echo "[3/4] building authd binary into stage (linux/${GOARCH_TARGET}) version=${VERSION} commit=${COMMIT} date=${DATE}"
+echo "[3/${TOTAL_STEPS}] building authd binary into stage (linux/${GOARCH_TARGET}) version=${VERSION} commit=${COMMIT} date=${DATE}"
 CGO_ENABLED=0 GOOS=linux GOARCH="${GOARCH_TARGET}" \
     go build -trimpath -ldflags="${LDFLAGS}" -o "${STAGE_DIR}/authd" .
 cp "${PROJECT_ROOT}/config/authd.toml"          "${STAGE_DIR}/config/authd.toml.example"
 cp "${PROJECT_ROOT}/config/authd-settings.toml" "${STAGE_DIR}/config/authd-settings.toml.example"
 
-ARCHIVE="${BUILD_DIR}/authd.tar.gz"
-echo "[4/4] packing ${ARCHIVE}"
-tar -czf "${ARCHIVE}" -C "${BUILD_DIR}" authd
+ARCHIVE=""
+if [ "${DO_TAR}" = "1" ]; then
+    ARCHIVE="${BUILD_DIR}/authd.tar.gz"
+    echo "[4/${TOTAL_STEPS}] packing ${ARCHIVE}"
+    tar -czf "${ARCHIVE}" -C "${BUILD_DIR}" authd
+fi
 
 echo "done."
 echo "  staged:   ${STAGE_DIR}"
-echo "  archive:  ${ARCHIVE}"
+if [ -n "${ARCHIVE}" ]; then
+    echo "  archive:  ${ARCHIVE}"
+fi
