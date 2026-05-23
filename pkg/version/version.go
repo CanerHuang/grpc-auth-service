@@ -9,8 +9,12 @@ var (
 	Date    = "unknown"
 )
 
-// Info renders the short form used in startup log: "<version>-<date>".
-// Commit is exposed separately via the gRPC VersionInfo message.
+// Info renders the short form used in startup log: "<version>-<commit>-<date>".
 func Info() string {
-	return Version + "-" + Date
+	return Version + "-" + Commit + "-" + Date
+}
+
+// Detailed renders a multi-line human-readable form for CLI `-version` output.
+func Detailed() string {
+	return "version: " + Version + "\ncommit:  " + Commit + "\ndate:    " + Date
 }

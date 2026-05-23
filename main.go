@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -27,11 +28,17 @@ func init() {
 }
 
 func main() {
-	log.Info().Msgf("Auth service version %s starting...", version.Info())
-
 	flagConfigFile := flag.String("config", "", "Path to the configuration file (default: <exe-dir>/config/authd.toml)")
 	flagSettingsFile := flag.String("settings", "", "Path to the mutable settings file (default: <exe-dir>/config/authd-settings.toml)")
+	flagVersion := flag.Bool("version", false, "Print version information and exit")
 	flag.Parse()
+
+	if *flagVersion {
+		fmt.Println(version.Detailed())
+		os.Exit(0)
+	}
+
+	log.Info().Msgf("Auth service version %s starting...", version.Info())
 
 	cfg, err := config.Load(*flagConfigFile)
 	if err != nil {
