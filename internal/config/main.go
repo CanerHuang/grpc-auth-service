@@ -20,6 +20,7 @@ type Config struct {
 	Server  ServerConfig  `toml:"server"`
 	Storage StorageConfig `toml:"storage"`
 	Auth    AuthConfig    `toml:"auth"`
+	DefaultSetting Settings `toml:"default_setting"`
 }
 
 type ServerConfig struct {

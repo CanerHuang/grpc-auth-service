@@ -103,8 +103,8 @@ mkdir -p "${STAGE_DIR}/config"
 echo "[3/${TOTAL_STEPS}] building authd binary into stage (linux/${GOARCH_TARGET}) version=${VERSION} commit=${COMMIT} date=${DATE}"
 CGO_ENABLED=0 GOOS=linux GOARCH="${GOARCH_TARGET}" \
     go build -trimpath -ldflags="${LDFLAGS}" -o "${STAGE_DIR}/authd" .
-cp "${PROJECT_ROOT}/config/authd.toml"          "${STAGE_DIR}/config/authd.toml.example"
-cp "${PROJECT_ROOT}/config/authd-settings.toml" "${STAGE_DIR}/config/authd-settings.toml.example"
+cp "${PROJECT_ROOT}/config/authd.toml" "${STAGE_DIR}/config/authd.toml.example"
+
 
 ARCHIVE=""
 if [ "${DO_TAR}" = "1" ]; then

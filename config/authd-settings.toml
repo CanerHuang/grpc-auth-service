@@ -1,8 +1,0 @@
-# authd-settings.toml — 執行期可變設定，由 gRPC UpdateAuthSettings 直接寫入。
-# 若檔案不存在，authd 首次啟動會以本檔的預設值自動建立。
-
-# refresh token 旋轉時是否延長到期時間。
-#   true  — 每次 RefreshToken 都把新 session 的有效期重設為 refresh_token_ttl，
-#           只要使用者持續活動，session 不會過期。
-#   false — 旋轉時沿用原 session 的 ExpiresAt，session 一旦發出就有固定壽命。
-refresh_token_extend_on_refresh = true

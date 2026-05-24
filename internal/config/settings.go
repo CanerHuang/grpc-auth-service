@@ -18,12 +18,6 @@ type Settings struct {
 	RefreshTokenExtendOnRefresh bool `toml:"refresh_token_extend_on_refresh"`
 }
 
-func defaultSettings() Settings {
-	return Settings{
-		RefreshTokenExtendOnRefresh: true,
-	}
-}
-
 // SettingsStore 提供 thread-safe 的 Get/Set，並在 Set 時將設定寫回檔案。
 type SettingsStore struct {
 	mu       sync.RWMutex
@@ -40,8 +34,11 @@ func DefaultSettingsPath() string {
 	return filepath.Join(filepath.Dir(exe), DefaultConfigDir, DefaultSettingsFileName)
 }
 
-// LoadSettings 載入 authd-settings.toml。若檔案不存在，會以預設值建立並寫盤。
-func LoadSettings(path string) (*SettingsStore, error) {
+// LoadSettings 載入 authd-settings.toml。檔案不存在時以 defaults 建立並寫盤；
+// 既有檔案用 defaults 當 base、再用檔內值覆蓋，讓部分欄位的 toml 仍能解析。
+// defaults 應由 caller 從 config.Config.DefaultSetting 提供（authd.toml 的
+// [default_setting] 區塊），單一來源，與 systemcore 採用同一個 pattern。
+func LoadSettings(path string, defaults Settings) (*SettingsStore, error) {
 	settingsPath := strings.TrimSpace(path)
 	if settingsPath == "" {
 		settingsPath = DefaultSettingsPath()
@@ -52,14 +49,13 @@ func LoadSettings(path string) (*SettingsStore, error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("read authd settings %q failed: %w", settingsPath, err)
 		}
-		s := defaultSettings()
-		if err := writeSettings(settingsPath, s); err != nil {
+		if err := writeSettings(settingsPath, defaults); err != nil {
 			return nil, err
 		}
-		return &SettingsStore{path: settingsPath, settings: s}, nil
+		return &SettingsStore{path: settingsPath, settings: defaults}, nil
 	}
 
-	s := defaultSettings()
+	s := defaults
 	if err := toml.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("parse auth settings %q failed: %w", settingsPath, err)
 	}

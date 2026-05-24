@@ -37,7 +37,7 @@ func setupService(t *testing.T) (*Service, *sqlite.Store, func()) {
 		MaxUsers:                  10,
 	}
 
-	settings, err := config.LoadSettings(filepath.Join(dir, "authd-settings.toml"))
+	settings, err := config.LoadSettings(filepath.Join(dir, "authd-settings.toml"), config.Settings{RefreshTokenExtendOnRefresh: true})
 	if err != nil {
 		t.Fatalf("failed to load settings: %v", err)
 	}

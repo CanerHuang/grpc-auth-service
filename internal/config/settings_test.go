@@ -8,11 +8,16 @@ import (
 	"authd/internal/config"
 )
 
+// canonicalDefaults mirrors the values shipped in src/authd/config/authd.toml
+// under [default_setting]. Tests use this so they stay decoupled from the
+// shipped toml file but still exercise the same first-run semantics.
+var canonicalDefaults = config.Settings{RefreshTokenExtendOnRefresh: true}
+
 func TestLoadSettings_CreatesDefaultWhenMissing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "authd-settings.toml")
 
-	store, err := config.LoadSettings(path)
+	store, err := config.LoadSettings(path, canonicalDefaults)
 	if err != nil {
 		t.Fatalf("LoadSettings: %v", err)
 	}
@@ -29,7 +34,7 @@ func TestLoadSettings_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "authd-settings.toml")
 
-	store, err := config.LoadSettings(path)
+	store, err := config.LoadSettings(path, canonicalDefaults)
 	if err != nil {
 		t.Fatalf("LoadSettings: %v", err)
 	}
@@ -37,7 +42,7 @@ func TestLoadSettings_RoundTrip(t *testing.T) {
 		t.Fatalf("Set: %v", err)
 	}
 
-	reloaded, err := config.LoadSettings(path)
+	reloaded, err := config.LoadSettings(path, canonicalDefaults)
 	if err != nil {
 		t.Fatalf("reload: %v", err)
 	}
@@ -52,7 +57,7 @@ func TestLoadSettings_PreservesExistingValue(t *testing.T) {
 	if err := os.WriteFile(path, []byte("refresh_token_extend_on_refresh = false\n"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	store, err := config.LoadSettings(path)
+	store, err := config.LoadSettings(path, canonicalDefaults)
 	if err != nil {
 		t.Fatalf("LoadSettings: %v", err)
 	}

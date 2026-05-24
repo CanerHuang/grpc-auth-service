@@ -24,3 +24,9 @@ bootstrap_admin_username = 'admin'
 bootstrap_admin_password = 'Admin123!'
 bootstrap_admin_display_name = 'Admin'
 bootstrap_admin_roles = ['admin']
+
+# ---- [default_setting] — first-run seed for authd-settings.toml ----
+# 當 daemon 啟動找不到 authd-settings.toml 時，會把本區塊的值寫到磁碟並使用。
+[default_setting]
+# refresh token 旋轉時是否延長到期時間。
+refresh_token_extend_on_refresh = true

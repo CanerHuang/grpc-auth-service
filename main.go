@@ -45,7 +45,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load auth config")
 	}
 
-	settings, err := config.LoadSettings(*flagSettingsFile)
+	settings, err := config.LoadSettings(*flagSettingsFile, cfg.DefaultSetting)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to load auth settings")
 	}
