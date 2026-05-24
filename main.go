@@ -28,8 +28,8 @@ func init() {
 }
 
 func main() {
-	flagConfigFile := flag.String("config", "", "Path to the configuration file (default: <exe-dir>/config/authd.toml)")
-	flagSettingsFile := flag.String("settings", "", "Path to the mutable settings file (default: <exe-dir>/config/authd-settings.toml)")
+	flagConfigFile := flag.String("config", "", "Path to the configuration file (default: <exe-dir>/conf/authd.toml)")
+	flagSettingsFile := flag.String("settings", "", "Path to the mutable settings file (default: <exe-dir>/conf/authd-settings.toml)")
 	flagVersion := flag.Bool("version", false, "Print version information and exit")
 	flag.Parse()
 

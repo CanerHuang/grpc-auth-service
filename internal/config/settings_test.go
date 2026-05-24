@@ -8,7 +8,7 @@ import (
 	"authd/internal/config"
 )
 
-// canonicalDefaults mirrors the values shipped in src/authd/config/authd.toml
+// canonicalDefaults mirrors the values shipped in src/authd/conf/authd.toml
 // under [default_setting]. Tests use this so they stay decoupled from the
 // shipped toml file but still exercise the same first-run semantics.
 var canonicalDefaults = config.Settings{RefreshTokenExtendOnRefresh: true}

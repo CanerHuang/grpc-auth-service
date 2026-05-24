@@ -11,7 +11,7 @@
 ```text
 grpc-auth-service/
 ├── main.go                     # 啟動流程：載入設定、開 SQLite、啟動 gRPC server
-├── config/
+├── conf/
 │   ├── authd.toml              # 啟動期設定檔（read-only）
 │   └── authd-settings.toml     # 執行期可變設定（由 gRPC 更新）
 ├── proto/v1/                   # gRPC 介面定義 (auth.proto)
@@ -36,7 +36,7 @@ go build -o authd .
 執行：
 
 ```bash
-./authd                                       # 讀取 <exe-dir>/config/authd.toml 與 <exe-dir>/config/authd-settings.toml
+./authd                                       # 讀取 <exe-dir>/conf/authd.toml 與 <exe-dir>/conf/authd-settings.toml
 ./authd -config /etc/authd/authd.toml \
         -settings /var/lib/authd/authd-settings.toml
 ```
@@ -46,12 +46,12 @@ go build -o authd .
 
 ## 佈署 Layout
 
-`build.sh` 產出的 `authd.tar.gz` 解開後即符合 `authd` 的預設路徑解析（設定檔位於 exe 同目錄底下的 `config/`），建議佈署到 `/opt/authd/`：
+`build.sh` 產出的 `authd.tar.gz` 解開後即符合 `authd` 的預設路徑解析（設定檔位於 exe 同目錄底下的 `conf/`），建議佈署到 `/opt/authd/`：
 
 ```text
 /opt/authd/
 ├── authd                          # build.sh 產出的 binary
-├── config/
+├── conf/
 │   ├── authd.toml                 # 啟動期設定（由 authd.toml.example 改名）
 │   └── authd-settings.toml        # 執行期設定（首次啟動會自動建立）
 └── data/
@@ -68,8 +68,8 @@ useradd --system --home /opt/authd --shell /usr/sbin/nologin authd
 
 # 2. 解開 tarball、改名 .example、設定權限
 tar -xzf authd.tar.gz -C /opt
-mv /opt/authd/config/authd.toml.example          /opt/authd/config/authd.toml
-mv /opt/authd/config/authd-settings.toml.example /opt/authd/config/authd-settings.toml
+mv /opt/authd/conf/authd.toml.example          /opt/authd/conf/authd.toml
+mv /opt/authd/conf/authd-settings.toml.example /opt/authd/conf/authd-settings.toml
 mkdir -p /opt/authd/data
 chown -R authd:authd /opt/authd
 
@@ -83,7 +83,7 @@ systemctl enable --now authd
 
 ### `authd.toml`（啟動期設定，read-only）
 
-所有欄位皆為必填，啟動時嚴格驗證。範例見 [`authd.toml`](config/authd.toml)。
+所有欄位皆為必填，啟動時嚴格驗證。範例見 [`authd.toml`](conf/authd.toml)。
 
 ```toml
 [server]
@@ -124,7 +124,7 @@ bootstrap_admin_roles = ['admin']
 
 ### `authd-settings.toml`（執行期設定，可由 gRPC 更新）
 
-存放可在執行期動態調整的開關，目前僅 `refresh_token_extend_on_refresh`。透過 gRPC `UpdateAuthSettings` 寫入後會立即落盤；首次啟動若檔案不存在，會以下列預設值自動建立。範例見 [`authd-settings.toml`](config/authd-settings.toml)。
+存放可在執行期動態調整的開關，目前僅 `refresh_token_extend_on_refresh`。透過 gRPC `UpdateAuthSettings` 寫入後會立即落盤；首次啟動若檔案不存在，會以下列預設值自動建立。範例見 [`authd-settings.toml`](conf/authd-settings.toml)。
 
 ```toml
 # refresh token 旋轉時是否延長到期時間。

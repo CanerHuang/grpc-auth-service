@@ -25,7 +25,7 @@ type SettingsStore struct {
 	settings Settings
 }
 
-// DefaultSettingsPath 回傳 exe 同目錄底下的 config/authd-settings.toml 絕對路徑。
+// DefaultSettingsPath 回傳 exe 同目錄底下的 conf/authd-settings.toml 絕對路徑。
 func DefaultSettingsPath() string {
 	exe, err := os.Executable()
 	if err != nil {

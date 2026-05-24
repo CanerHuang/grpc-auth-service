@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DefaultConfigDir      = "config"
+	DefaultConfigDir      = "conf"
 	DefaultConfigFileName = "authd.toml"
 )
 
@@ -121,7 +121,7 @@ func validate(cfg *Config) error {
 	return nil
 }
 
-// DefaultConfigPath 回傳 exe 同目錄底下的 config/authd.toml 絕對路徑。
+// DefaultConfigPath 回傳 exe 同目錄底下的 conf/authd.toml 絕對路徑。
 func DefaultConfigPath() string {
 	exe, err := os.Executable()
 	if err != nil {
