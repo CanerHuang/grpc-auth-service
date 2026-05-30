@@ -25,15 +25,17 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
+const defaultRefreshPurgeInterval = time.Minute
+
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid token")
-	ErrDisabledUser       = errors.New("user disabled")
+	ErrInvalidArgument    = errors.New("invalid argument")
 	ErrInvalidUpdateMask  = errors.New("invalid update mask")
 	ErrUserLimitExceeded  = errors.New("user limit exceeded")
 	ErrInvalidPassword    = errors.New("invalid password")
-	// === 授權（Authorization）相關 ===
 
+	// === 授權（Authorization）相關 ===
 	// ErrPermissionDenied 表示通用的授權失敗（缺少所需 permission）
 	ErrPermissionDenied = errors.New("permission denied")
 
@@ -48,16 +50,18 @@ var (
 
 var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9._]{1,30})[a-zA-Z0-9]$`)
 
-const defaultRefreshPurgeInterval = time.Minute
-
 type Service struct {
-	config                config.AuthConfig
-	settings              *config.SettingsStore
-	store                 *sqlite.Store
-	parser                *jwt.Parser
-	refreshMu             sync.RWMutex
-	refreshSessions       map[string]refreshSession
-	triggerRefreshPurgeAt int64
+	settings                 *config.SettingsStore
+	store                    *sqlite.Store
+	jwtParser                *jwt.Parser
+	issuer                   string
+	signingKey               []byte
+	maxUsers                 uint32
+	accessTokenTTL           time.Duration
+	refreshSessionsMu        sync.RWMutex
+	refreshSessions          map[string]refreshSession
+	refreshTokenTTL          time.Duration
+	nextRefreshPurgeUnixNano int64
 }
 
 type refreshSession struct {
@@ -122,35 +126,33 @@ func New(cfg config.AuthConfig, settings *config.SettingsStore, store *sqlite.St
 		return nil, fmt.Errorf("auth settings store is required")
 	}
 	return &Service{
-		config:                cfg,
-		settings:              settings,
-		store:                 store,
-		parser:                jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name})),
-		refreshSessions:       make(map[string]refreshSession),
-		triggerRefreshPurgeAt: 0,
+		settings:                 settings,
+		store:                    store,
+		jwtParser:                jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name})),
+		refreshSessions:          make(map[string]refreshSession),
+		nextRefreshPurgeUnixNano: 0,
+		refreshTokenTTL:          cfg.RefreshTokenTTL.Std(),
+		accessTokenTTL:           cfg.AccessTokenTTL.Std(),
+		issuer:                   cfg.Issuer,
+		signingKey:               []byte(cfg.SigningKey),
+		maxUsers:                 cfg.MaxUsers,
 	}, nil
 }
 
-func (s *Service) EnsureBootstrapAdmin() error {
-	if strings.TrimSpace(s.config.BootstrapAdminUsername) == "" || strings.TrimSpace(s.config.BootstrapAdminPassword) == "" {
+func (s *Service) EnsureBootstrapAdmin(username, password, displayName string, roles []string) error {
+	if strings.TrimSpace(username) == "" || strings.TrimSpace(password) == "" {
 		return nil
 	}
 
-	if err := ValidateUsername(s.config.BootstrapAdminUsername); err != nil {
+	if err := ValidateUsername(username); err != nil {
 		return fmt.Errorf("invalid bootstrap admin username: %w", err)
 	}
 
-	if err := ValidateDisplayName(s.config.BootstrapAdminDisplayName); err != nil {
+	if err := ValidateDisplayName(displayName); err != nil {
 		return fmt.Errorf("invalid bootstrap admin display name: %w", err)
 	}
 
-	/*
-		if err := ValidatePassword(s.config.BootstrapAdminPassword); err != nil {
-			return fmt.Errorf("invalid bootstrap admin password: %w", err)
-		}
-	*/
-
-	passwordHash, err := hashPassword(s.config.BootstrapAdminPassword)
+	passwordHash, err := hashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -166,16 +168,16 @@ func (s *Service) EnsureBootstrapAdmin() error {
 		return nil
 	}
 
-	roles, err := normalizeRoleNames(s.config.BootstrapAdminRoles)
+	normalizedRoles, err := normalizeRoleNames(roles)
 	if err != nil {
 		return fmt.Errorf("invalid bootstrap admin roles: %w", err)
 	}
 
 	_, err = s.store.CreateUser(ctx, sqlite.CreateUserParams{
-		Username:     s.config.BootstrapAdminUsername,
+		Username:     username,
 		PasswordHash: passwordHash,
-		DisplayName:  s.config.BootstrapAdminDisplayName,
-		Roles:        roles,
+		DisplayName:  displayName,
+		Roles:        normalizedRoles,
 		Enabled:      true,
 	})
 	return err
@@ -183,7 +185,7 @@ func (s *Service) EnsureBootstrapAdmin() error {
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, error) {
 	if err := ValidateUsername(input.Username); err != nil {
-		return nil, fmt.Errorf("invalid username: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 
 	user, err := s.store.GetUserByUsername(ctx, input.Username)
@@ -215,7 +217,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 		ClientID:  strings.TrimSpace(input.ClientID),
 		UserAgent: strings.TrimSpace(input.UserAgent),
 		ClientIP:  strings.TrimSpace(input.ClientIP),
-		ExpiresAt: now.Add(s.config.RefreshTokenTTL.Std()),
+		ExpiresAt: now.Add(s.refreshTokenTTL),
 		CreatedAt: now,
 	}
 	s.purgeExpiredRefreshSessions(now)
@@ -240,8 +242,8 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginResult, er
 func (s *Service) VerifyToken(ctx context.Context, accessToken string) (*TokenClaims, error) {
 	_ = ctx
 	claims := &TokenClaims{}
-	token, err := s.parser.ParseWithClaims(accessToken, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(s.config.SigningKey), nil
+	token, err := s.jwtParser.ParseWithClaims(accessToken, claims, func(token *jwt.Token) (interface{}, error) {
+		return s.signingKey, nil
 	})
 	if err != nil || !token.Valid {
 		return nil, ErrInvalidToken
@@ -266,7 +268,8 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Refre
 		return nil, err
 	}
 	if !user.Enabled {
-		return nil, ErrDisabledUser
+		// 與 Login 一致：不揭露「帳號已停用」，一律以 generic token 失效回應。
+		return nil, ErrInvalidToken
 	}
 
 	accessToken, err := s.signAccessToken(user)
@@ -282,7 +285,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Refre
 	}
 	newRefreshExpiresAt := session.ExpiresAt
 	if s.settings.RefreshTokenExtendOnRefresh() {
-		newRefreshExpiresAt = now.Add(s.config.RefreshTokenTTL.Std())
+		newRefreshExpiresAt = now.Add(s.refreshTokenTTL)
 	}
 	s.saveRefreshSession(newRefreshHash, refreshSession{
 		UserID:    session.UserID,
@@ -307,15 +310,15 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	_ = ctx
 	s.purgeExpiredRefreshSessions(time.Now().UTC())
 	refreshHash := hashRefreshToken(refreshToken)
-	s.refreshMu.Lock()
+	s.refreshSessionsMu.Lock()
 	delete(s.refreshSessions, refreshHash)
-	s.refreshMu.Unlock()
+	s.refreshSessionsMu.Unlock()
 	return nil
 }
 
 func (s *Service) GetProfile(ctx context.Context, userID uint32, claimsData string) (*sqlite.User, error) {
 	if userID == 0 {
-		return nil, ErrForbiddenSelfAction
+		return nil, fmt.Errorf("%w: user id must not be zero", ErrInvalidArgument)
 	}
 	claims, err := s.VerifyToken(ctx, claimsData)
 	if err != nil {
@@ -337,27 +340,27 @@ func (s *Service) CreateUser(ctx context.Context, input CreateUserInput, claimsD
 		return nil, ErrPermissionDenied
 	}
 
-	if s.config.MaxUsers > 0 {
+	if s.maxUsers > 0 {
 		count, err := s.store.CountUsers(ctx, "", false)
 		if err != nil {
 			return nil, err
 		}
-		if count >= s.config.MaxUsers {
+		if count >= s.maxUsers {
 			return nil, ErrUserLimitExceeded
 		}
 	}
 
 	if err := ValidateUsername(input.Username); err != nil {
-		return nil, fmt.Errorf("invalid username: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 
 	if err := ValidateDisplayName(input.DisplayName); err != nil {
-		return nil, fmt.Errorf("invalid display name: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 
 	roles, err := normalizeRoleNames(input.Roles)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 
 	passwordHash, err := hashPassword(input.Password)
@@ -375,7 +378,7 @@ func (s *Service) CreateUser(ctx context.Context, input CreateUserInput, claimsD
 
 func (s *Service) UpdateUser(ctx context.Context, input UpdateUserInput, claimsData string) (*sqlite.User, error) {
 	if input.UserID == 0 {
-		return nil, ErrForbiddenSelfAction
+		return nil, fmt.Errorf("%w: user id must not be zero", ErrInvalidArgument)
 	}
 	claims, err := s.VerifyToken(ctx, claimsData)
 	if err != nil {
@@ -397,7 +400,7 @@ func (s *Service) UpdateUser(ctx context.Context, input UpdateUserInput, claimsD
 			params.PasswordHash = &passwordHash
 		case "display_name":
 			if err := ValidateDisplayName(input.DisplayName); err != nil {
-				return nil, fmt.Errorf("invalid display name: %w", err)
+				return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 			}
 			displayName := input.DisplayName
 			params.DisplayName = &displayName
@@ -410,7 +413,7 @@ func (s *Service) UpdateUser(ctx context.Context, input UpdateUserInput, claimsD
 			}
 			roles, err := normalizeRoleNames(input.Roles)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 			}
 			params.Roles = &roles
 		case "enabled":
@@ -434,13 +437,16 @@ func (s *Service) UpdateUser(ctx context.Context, input UpdateUserInput, claimsD
 
 func (s *Service) DeleteUser(ctx context.Context, userID uint32, claimsData string) error {
 	if userID == 0 {
-		return ErrForbiddenSelfAction
+		return fmt.Errorf("%w: user id must not be zero", ErrInvalidArgument)
 	}
 	claims, err := s.VerifyToken(ctx, claimsData)
 	if err != nil {
 		return err
 	}
-	if claims.UserID == userID || !ResolvePermissions(claims.Roles).Has(PermUserDelete) {
+	if claims.UserID == userID {
+		return ErrForbiddenSelfAction
+	}
+	if !ResolvePermissions(claims.Roles).Has(PermUserDelete) {
 		return ErrPermissionDenied
 	}
 	return s.store.DeleteUser(ctx, userID)
@@ -448,7 +454,7 @@ func (s *Service) DeleteUser(ctx context.Context, userID uint32, claimsData stri
 
 func (s *Service) ListUsers(ctx context.Context, pageSize int32, pageToken, keyword string, enabledOnly bool, claimsData string) ([]*sqlite.User, string, error) {
 	if err := validateKeyword(keyword); err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 	_, err := s.VerifyToken(ctx, claimsData)
 	if err != nil {
@@ -464,7 +470,7 @@ func (s *Service) ListUsers(ctx context.Context, pageSize int32, pageToken, keyw
 	}
 	offset, err := decodePageToken(pageToken)
 	if err != nil {
-		return nil, "", ErrInvalidToken
+		return nil, "", fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 
 	users, err := s.store.ListUsers(ctx, sqlite.ListUsersFilter{
@@ -485,7 +491,7 @@ func (s *Service) ListUsers(ctx context.Context, pageSize int32, pageToken, keyw
 
 func (s *Service) CountUsers(ctx context.Context, keyword string, enabledOnly bool, claimsData string) (uint32, error) {
 	if err := validateKeyword(keyword); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%w: %w", ErrInvalidArgument, err)
 	}
 	_, err := s.VerifyToken(ctx, claimsData)
 	if err != nil {
@@ -545,13 +551,13 @@ func (s *Service) signAccessToken(user *sqlite.User) (string, error) {
 		Username: user.Username,
 		Roles:    append([]string(nil), user.Roles...),
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    s.config.Issuer,
+			Issuer:    s.issuer,
 			Subject:   strconv.FormatUint(uint64(user.UserID), 10),
-			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(s.config.AccessTokenTTL.Std())),
+			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(s.accessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		},
 	}
-	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.config.SigningKey))
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(s.signingKey)
 	if err != nil {
 		return "", fmt.Errorf("sign access token failed: %w", err)
 	}
@@ -559,26 +565,26 @@ func (s *Service) signAccessToken(user *sqlite.User) (string, error) {
 }
 
 func (s *Service) saveRefreshSession(tokenHash string, session refreshSession) {
-	s.refreshMu.Lock()
-	defer s.refreshMu.Unlock()
+	s.refreshSessionsMu.Lock()
+	defer s.refreshSessionsMu.Unlock()
 	s.refreshSessions[tokenHash] = session
 }
 
 func (s *Service) getRefreshSession(tokenHash string) (refreshSession, bool) {
-	s.refreshMu.RLock()
-	defer s.refreshMu.RUnlock()
+	s.refreshSessionsMu.RLock()
+	defer s.refreshSessionsMu.RUnlock()
 	session, ok := s.refreshSessions[tokenHash]
 	return session, ok
 }
 
-func (s *Service) revokeRefreshSession(userId uint32, tokenHash string) error {
-	s.refreshMu.Lock()
-	defer s.refreshMu.Unlock()
+func (s *Service) revokeRefreshSession(userID uint32, tokenHash string) error {
+	s.refreshSessionsMu.Lock()
+	defer s.refreshSessionsMu.Unlock()
 	refresh, ok := s.refreshSessions[tokenHash]
 	if !ok {
 		return ErrInvalidToken
 	}
-	if refresh.UserID != userId {
+	if refresh.UserID != userID {
 		return ErrInvalidToken
 	}
 	delete(s.refreshSessions, tokenHash)
@@ -587,13 +593,13 @@ func (s *Service) revokeRefreshSession(userId uint32, tokenHash string) error {
 
 func (s *Service) purgeExpiredRefreshSessions(now time.Time) {
 	nowUnixNano := now.UnixNano()
-	if s.triggerRefreshPurgeAt > nowUnixNano {
+	if s.nextRefreshPurgeUnixNano > nowUnixNano {
 		return
 	}
-	s.triggerRefreshPurgeAt = nowUnixNano + defaultRefreshPurgeInterval.Nanoseconds()
+	s.nextRefreshPurgeUnixNano = nowUnixNano + defaultRefreshPurgeInterval.Nanoseconds()
 
-	s.refreshMu.Lock()
-	defer s.refreshMu.Unlock()
+	s.refreshSessionsMu.Lock()
+	defer s.refreshSessionsMu.Unlock()
 
 	for tokenHash, session := range s.refreshSessions {
 		if now.After(session.ExpiresAt) {

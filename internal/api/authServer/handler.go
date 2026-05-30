@@ -294,21 +294,23 @@ func toStatusError(err error) error {
 		errors.Is(err, service.ErrInvalidToken):
 		return status.Error(codes.Unauthenticated, err.Error())
 
-	// === PermissionDenied（授權失敗 / 帳號狀態問題）===
-	case errors.Is(err, service.ErrDisabledUser),
-		errors.Is(err, service.ErrPermissionDenied),
-		errors.Is(err, service.ErrForbiddenSelfAction),
+	// === PermissionDenied（授權失敗）===
+	case errors.Is(err, service.ErrPermissionDenied),
 		errors.Is(err, service.ErrForbiddenFieldUpdate):
 		return status.Error(codes.PermissionDenied, err.Error())
+
+	// === FailedPrecondition（禁止對自己執行的操作）===
+	case errors.Is(err, service.ErrForbiddenSelfAction):
+		return status.Error(codes.FailedPrecondition, err.Error())
 
 	// === ResourceExhausted ===
 	case errors.Is(err, service.ErrUserLimitExceeded):
 		return status.Error(codes.ResourceExhausted, err.Error())
 
 	// === InvalidArgument ===
-	case errors.Is(err, service.ErrInvalidUpdateMask):
-		return status.Error(codes.InvalidArgument, err.Error())
-	case errors.Is(err, service.ErrInvalidPassword):
+	case errors.Is(err, service.ErrInvalidArgument),
+		errors.Is(err, service.ErrInvalidUpdateMask),
+		errors.Is(err, service.ErrInvalidPassword):
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	// === Internal（fallback）===

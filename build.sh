@@ -14,14 +14,14 @@
 #   ./build.sh --arm64                    # cross-compile linux/arm64
 #   ./build.sh --dev                      # stamp full UTC datetime instead of YYMMDD
 #   ./build.sh --tar                      # additionally pack stage into authd.tar.gz
-#   ./build.sh --build-dir=/path/to/out   # override build output dir
+#   ./build.sh --build-dir=/path/to/out   # override build output dir (default: <project>/dist)
 #
 # Requires: protoc, protoc-gen-go, protoc-gen-go-grpc, go.
 
 set -euo pipefail
 
 GOARCH_TARGET="amd64"
-BUILD_DIR="/tmp/authd/build"
+BUILD_DIR=""
 DEV_DATE=0
 DO_TAR=0
 for arg in "$@"; do
@@ -77,6 +77,8 @@ LDFLAGS="-s -w \
     -X ${VERSION_PKG}.Date=${DATE}"
 
 PROJECT_ROOT="$(pwd)"
+# 未指定 --build-dir 時，預設輸出到專案底下的 dist/。
+: "${BUILD_DIR:=${PROJECT_ROOT}/dist}"
 PROTO_DIR="${PROJECT_ROOT}/proto/v1"
 STUB_DIR="${PROJECT_ROOT}/pkg/grpc/auth"
 STAGE_DIR="${BUILD_DIR}/authd"

@@ -25,6 +25,9 @@ type Config struct {
 
 type ServerConfig struct {
 	ListenAddress string `toml:"listen_address"`
+	// UnixSocketPath 為可選的 Unix domain socket 路徑；留空表示不啟用 UDS 監聽。
+	// 可與 listen_address 並存，但兩者至少需設定一個。
+	UnixSocketPath string `toml:"unix_socket_path"`
 }
 
 type StorageConfig struct {
@@ -71,8 +74,27 @@ func Load(path string) (Config, error) {
 }
 
 func validate(cfg *Config) error {
-	if _, _, err := net.SplitHostPort(strings.TrimSpace(cfg.Server.ListenAddress)); err != nil {
-		return fmt.Errorf("server.listen_address %q: %w", cfg.Server.ListenAddress, err)
+	listenAddr := strings.TrimSpace(cfg.Server.ListenAddress)
+	socketPath := strings.TrimSpace(cfg.Server.UnixSocketPath)
+	if listenAddr == "" && socketPath == "" {
+		return fmt.Errorf("server: either listen_address or unix_socket_path must be set")
+	}
+	if listenAddr != "" {
+		if _, _, err := net.SplitHostPort(listenAddr); err != nil {
+			return fmt.Errorf("server.listen_address %q: %w", cfg.Server.ListenAddress, err)
+		}
+	}
+	if socketPath != "" {
+		if !filepath.IsAbs(socketPath) {
+			return fmt.Errorf("server.unix_socket_path %q must be an absolute path", socketPath)
+		}
+		// Linux sun_path 上限為 108 bytes（含結尾 NUL），路徑過長 bind 會失敗。
+		if len(socketPath) > 107 {
+			return fmt.Errorf("server.unix_socket_path %q too long (%d bytes, max 107)", socketPath, len(socketPath))
+		}
+		if strings.ContainsRune(socketPath, 0) {
+			return fmt.Errorf("server.unix_socket_path must not contain NUL byte")
+		}
 	}
 
 	if strings.TrimSpace(cfg.Storage.SQLitePath) == "" {

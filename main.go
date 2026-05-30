@@ -1,10 +1,8 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,7 +15,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
 )
 
 func init() {
@@ -61,26 +58,16 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to initialize auth service")
 	}
 
-	if err := authService.EnsureBootstrapAdmin(); err != nil {
+	if err := authService.EnsureBootstrapAdmin(cfg.Auth.BootstrapAdminUsername, cfg.Auth.BootstrapAdminPassword, cfg.Auth.BootstrapAdminDisplayName, cfg.Auth.BootstrapAdminRoles); err != nil {
 		log.Fatal().Err(err).Msg("failed to ensure bootstrap admin")
 	}
 
-	listener, err := net.Listen("tcp", cfg.Server.ListenAddress)
+	server, err := authServer.NewServer(authService, cfg.Server.ListenAddress, cfg.Server.UnixSocketPath)
 	if err != nil {
-		log.Fatal().Err(err).Str("listen", cfg.Server.ListenAddress).Msg("failed to bind gRPC listener")
+		log.Fatal().Err(err).Msg("failed to start gRPC server")
 	}
 
-	server := authServer.NewServer(authServer.NewHandler(authService))
-	serveErrCh := make(chan error, 1)
-	go func() {
-		// Serve 在 GracefulStop 後會回傳 ErrServerStopped，視為正常結束。
-		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			serveErrCh <- err
-		}
-		close(serveErrCh)
-	}()
-
-	log.Info().Str("listen", cfg.Server.ListenAddress).Str("sqlite_path", cfg.Storage.SQLitePath).Msg("auth service ready")
+	log.Info().Str("sqlite_path", cfg.Storage.SQLitePath).Msg("auth service ready")
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -88,12 +75,12 @@ func main() {
 	select {
 	case sig := <-sigCh:
 		log.Info().Stringer("signal", sig).Msg("received shutdown signal")
-	case err := <-serveErrCh:
+	case err := <-server.Err():
 		if err != nil {
 			log.Error().Err(err).Msg("gRPC server failed")
 		}
 	}
 
-	server.GracefulStop()
+	server.Stop()
 	log.Info().Msg("auth service stopped")
 }

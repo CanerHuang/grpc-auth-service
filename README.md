@@ -5,6 +5,7 @@
 ## 文件
 
 - [doc/database.md](doc/database.md)：SQLite 資料模型、Token 策略與 gRPC 對應說明
+- [doc/errors.md](doc/errors.md)：gRPC 錯誤碼對照、各 RPC 可能回傳的錯誤與訊息揭露原則
 
 ## 專案結構
 

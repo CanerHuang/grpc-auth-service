@@ -1,6 +1,9 @@
 [server]
 # gRPC 監聽位址，格式為 host:port。host 留空表示綁定所有介面。
 listen_address = ':30052'
+# Unix domain socket 路徑（絕對路徑）；留空表示不啟用 UDS，可與 listen_address 並存。
+# listen_address 與 unix_socket_path 至少需設定一個。
+# unix_socket_path = '/tmp/authd/authd.sock'
 
 [storage]
 # SQLite 資料庫檔案路徑；若父目錄不存在，SQLite Driver 會嘗試自動建立。

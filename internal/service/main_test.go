@@ -153,7 +153,7 @@ func TestEnsureBootstrapAdmin(t *testing.T) {
 	ctx := context.Background()
 
 	// Initial ensure should create the user
-	if err := svc.EnsureBootstrapAdmin(); err != nil {
+	if err := svc.EnsureBootstrapAdmin("admin", "Admin@123", "Admin", []string{"admin"}); err != nil {
 		t.Fatalf("EnsureBootstrapAdmin failed: %v", err)
 	}
 
@@ -169,7 +169,7 @@ func TestEnsureBootstrapAdmin(t *testing.T) {
 	}
 
 	// Calling again should not error and not create duplicates
-	if err := svc.EnsureBootstrapAdmin(); err != nil {
+	if err := svc.EnsureBootstrapAdmin("admin", "Admin@123", "Admin", []string{"admin"}); err != nil {
 		t.Fatalf("second EnsureBootstrapAdmin failed: %v", err)
 	}
 
@@ -184,7 +184,7 @@ func TestLoginAndVerifyToken(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	svc.EnsureBootstrapAdmin() // Create 'admin' with 'Admin@123'
+	svc.EnsureBootstrapAdmin("admin", "Admin@123", "Admin", []string{"admin"}) // Create 'admin' with 'Admin@123'
 
 	// Test Valid Login
 	loginResult, err := svc.Login(ctx, LoginInput{
@@ -245,7 +245,7 @@ func TestTokenLifecycle(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	svc.EnsureBootstrapAdmin()
+	svc.EnsureBootstrapAdmin("admin", "Admin@123", "Admin", []string{"admin"})
 	loginResult, err := svc.Login(ctx, LoginInput{Username: "admin", Password: "Admin@123"})
 	if err != nil {
 		t.Fatalf("login failed: %v", err)
@@ -295,7 +295,7 @@ func TestUserCRUD(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	svc.EnsureBootstrapAdmin()
+	svc.EnsureBootstrapAdmin("admin", "Admin@123", "Admin", []string{"admin"})
 	loginResult, _ := svc.Login(ctx, LoginInput{Username: "admin", Password: "Admin@123"})
 	adminToken := loginResult.AccessToken
 
@@ -398,7 +398,7 @@ func TestSettingsAndRoles(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	svc.EnsureBootstrapAdmin()
+	svc.EnsureBootstrapAdmin("admin", "Admin@123", "Admin", []string{"admin"})
 	loginResult, _ := svc.Login(ctx, LoginInput{Username: "admin", Password: "Admin@123"})
 	adminToken := loginResult.AccessToken
 
