@@ -52,7 +52,6 @@ service AuthAPI {
   // 需要 authorization metadata。
   rpc ListRoles(google.protobuf.Empty) returns (ListRolesResponse);
 
-
   // 取得認證設定。
   // 需要 authorization metadata。
   rpc GetAuthSettings(google.protobuf.Empty) returns (AuthSettings);

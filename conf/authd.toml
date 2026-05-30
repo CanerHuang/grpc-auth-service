@@ -3,21 +3,21 @@
 listen_address = ':30052'
 
 [storage]
-# SQLite 資料庫檔案路徑；若所在目錄不存在，sqlite driver 會嘗試建立。
+# SQLite 資料庫檔案路徑；若父目錄不存在，SQLite Driver 會嘗試自動建立。
 sqlite_path = 'data/authd.db'
-# SQLite busy_timeout，遇到 lock 時最多等待的時間（time.ParseDuration 格式）。
+# SQLite busy_timeout；資料庫遭鎖定時的最長等待時間。
 busy_timeout = '5s'
 
 [auth]
-# JWT 簽發者，會寫入 access token 的 `iss` claim。
+# JWT 簽發者（Issuer），其值會寫入 Access Token 的 `iss` claim。
 issuer = 'auth-service'
-# access token 有效時間（≥ 1s）。
+# Access Token 的有效期限（至少為 1 秒）。
 access_token_ttl = '5m'
-# refresh token 有效時間（≥ 1s，且須 ≥ access_token_ttl）。
+# Refresh Token 的有效期限（至少為 1 秒，且不得短於 access_token_ttl）。
 refresh_token_ttl = '30m'
 # 系統允許的最大使用者數，CreateUser 超過會回 ResourceExhausted。
 max_users = 20
-# HS256 簽章金鑰；正式環境請改為高熵亂數，勿沿用範例值。
+# HS256 簽章金鑰；正式環境請使用高熵隨機產生的金鑰，切勿沿用範例值。
 signing_key = 'my_secret_signing_key'
 # 首次啟動且 users 表為空時，會自動建立的管理員帳號。
 bootstrap_admin_username = 'admin'
@@ -26,7 +26,8 @@ bootstrap_admin_display_name = 'Admin'
 bootstrap_admin_roles = ['admin']
 
 # ---- [default_setting] — first-run seed for authd-settings.toml ----
-# 當 daemon 啟動找不到 authd-settings.toml 時，會把本區塊的值寫到磁碟並使用。
+# 當 daemon 首次啟動且找不到 authd-settings.toml 時，
+# 會以本區塊的內容產生設定檔並載入使用。
 [default_setting]
-# refresh token 旋轉時是否延長到期時間。
+# Refresh Token 續期時是否延長過期時間
 refresh_token_extend_on_refresh = true

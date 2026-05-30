@@ -61,7 +61,6 @@ cd "$(dirname "$0")"
 
 VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-# dev* tag 自動套用 dev 日期格式，無需手動帶 --dev。
 case "${VERSION}" in
     dev*) DEV_DATE=1 ;;
 esac
