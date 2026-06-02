@@ -6,12 +6,14 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"authd/internal/service"
 	api "authd/pkg/grpc/auth"
 
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // Server 封裝 gRPC server 與其監聽器，負責啟動 serve 與停止時的資源釋放。
@@ -31,7 +33,20 @@ func NewServer(authService *service.Service, listenAddress, unixSocketPath strin
 		return nil, err
 	}
 
-	g := grpc.NewServer()
+	g := grpc.NewServer(
+		// 主動探活：閒置 30s 後送 keepalive ping，10s 內未收到回應即斷線，
+		// 及早回收因網路中斷而殘留的半開連線。
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    30 * time.Second,
+			Timeout: 10 * time.Second,
+		}),
+		// 限制 client 端 keepalive ping 頻率：最短間隔 10s，且允許在沒有
+		// active stream 時送 ping；過於頻繁的 ping 會被視為違規而中斷連線。
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
 	api.RegisterAuthAPIServer(g, NewHandler(authService))
 
 	s := &Server{
