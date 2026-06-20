@@ -154,6 +154,11 @@ const validConfigTOML = `
 [server]
 listen_address = '127.0.0.1:30052'
 
+[server.keepalive]
+time = '10s'
+timeout = '3s'
+min_time = '5s'
+
 [storage]
 sqlite_path = 'data/authd.db'
 busy_timeout = '5s'

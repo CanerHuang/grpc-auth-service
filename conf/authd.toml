@@ -5,6 +5,15 @@ listen_address = ':30052'
 # listen_address 與 unix_socket_path 至少需設定一個。
 # unix_socket_path = '/tmp/authd/authd.sock'
 
+# gRPC server keepalive 時間設定。
+[server.keepalive]
+# 連線閒置多久後主動送 keepalive ping 探活。
+time = '10s'
+# 送出 ping 後等待回應的逾時，逾時未收到回應即斷線。
+timeout = '3s'
+# 允許 client 端 keepalive ping 的最短間隔，過於頻繁會被視為違規而中斷連線。
+min_time = '5s'
+
 [storage]
 # SQLite 資料庫檔案路徑；若父目錄不存在，SQLite Driver 會嘗試自動建立。
 sqlite_path = 'data/authd.db'

@@ -27,7 +27,18 @@ type ServerConfig struct {
 	ListenAddress string `toml:"listen_address"`
 	// UnixSocketPath 為可選的 Unix domain socket 路徑；留空表示不啟用 UDS 監聽。
 	// 可與 listen_address 並存，但兩者至少需設定一個。
-	UnixSocketPath string `toml:"unix_socket_path"`
+	UnixSocketPath string          `toml:"unix_socket_path"`
+	Keepalive      KeepaliveConfig `toml:"keepalive"`
+}
+
+// KeepaliveConfig 為 gRPC server 的 keepalive 時間設定。
+type KeepaliveConfig struct {
+	// Time 為連線閒置多久後主動送 keepalive ping 探活。
+	Time Duration `toml:"time"`
+	// Timeout 為送出 ping 後等待回應的逾時，逾時未收到回應即斷線。
+	Timeout Duration `toml:"timeout"`
+	// MinTime 為允許 client 端 keepalive ping 的最短間隔，過於頻繁會被視為違規而中斷連線。
+	MinTime Duration `toml:"min_time"`
 }
 
 type StorageConfig struct {
@@ -95,6 +106,16 @@ func validate(cfg *Config) error {
 		if strings.ContainsRune(socketPath, 0) {
 			return fmt.Errorf("server.unix_socket_path must not contain NUL byte")
 		}
+	}
+
+	if cfg.Server.Keepalive.Time.Std() <= 0 {
+		return fmt.Errorf("server.keepalive.time must be > 0")
+	}
+	if cfg.Server.Keepalive.Timeout.Std() <= 0 {
+		return fmt.Errorf("server.keepalive.timeout must be > 0")
+	}
+	if cfg.Server.Keepalive.MinTime.Std() <= 0 {
+		return fmt.Errorf("server.keepalive.min_time must be > 0")
 	}
 
 	if strings.TrimSpace(cfg.Storage.SQLitePath) == "" {

@@ -62,7 +62,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to ensure bootstrap admin")
 	}
 
-	server, err := authServer.NewServer(authService, cfg.Server.ListenAddress, cfg.Server.UnixSocketPath)
+	server, err := authServer.NewServer(authService, cfg.Server.ListenAddress, cfg.Server.UnixSocketPath, cfg.Server.Keepalive)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to start gRPC server")
 	}
