@@ -15,6 +15,7 @@
 #   ./build.sh --dev                      # stamp full UTC datetime instead of YYMMDD
 #   ./build.sh --tar                      # additionally pack stage into authd.tar.gz
 #   ./build.sh --build-dir=/path/to/out   # override build output dir (default: <project>/dist)
+#                                         # relative paths resolve against the current working dir
 #
 # Requires: protoc, protoc-gen-go, protoc-gen-go-grpc, go.
 
@@ -57,6 +58,8 @@ for arg in "$@"; do
     esac
 done
 
+# 記下呼叫 build.sh 當下的工作目錄，供相對的 --build-dir 解析使用。
+INVOCATION_DIR="$(pwd)"
 cd "$(dirname "$0")"
 
 VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
@@ -77,8 +80,11 @@ LDFLAGS="-s -w \
     -X ${VERSION_PKG}.Date=${DATE}"
 
 PROJECT_ROOT="$(pwd)"
-# 未指定 --build-dir 時，預設輸出到專案底下的 dist/。
-: "${BUILD_DIR:=${PROJECT_ROOT}/dist}"
+if [[ -z "${BUILD_DIR}" ]]; then
+    BUILD_DIR="${PROJECT_ROOT}/dist"
+elif [[ "${BUILD_DIR}" != /* ]]; then
+    BUILD_DIR="${INVOCATION_DIR}/${BUILD_DIR}"
+fi
 PROTO_DIR="${PROJECT_ROOT}/proto/v1"
 STUB_DIR="${PROJECT_ROOT}/pkg/grpc/auth"
 STAGE_DIR="${BUILD_DIR}/authd"
